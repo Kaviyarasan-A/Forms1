@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Forms1
@@ -44,6 +43,7 @@ namespace Forms1
                 {
                     Console.WriteLine($"Parsed message: {message}");
 
+                    // Check the response message and display the appropriate message
                     if (message.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
                     {
                         // Deserialize SubCompanies from the response
@@ -54,23 +54,29 @@ namespace Forms1
 
                         lblResult.Text = "License validated successfully.";
                     }
+                    else if (message.Equals("License expired.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lblResult.Text = "License expired.";  // Show expired license message
+                    }
                     else
                     {
-                        lblResult.Text = $"Validation failed: {message}";
+                        lblResult.Text = "License invalid. Please check your license key.";
                     }
                 }
                 else
                 {
-                    lblResult.Text = "Message field is missing or null in the response.";
+                    lblResult.Text = "Response message is missing or null.";
                 }
             }
-            catch (HttpRequestException httpEx)
+            catch (HttpRequestException)
             {
-                lblResult.Text = $"Request failed: {httpEx.Message}";
+                // Catch HTTP-related issues like network errors, unreachable API, etc.
+                lblResult.Text = "License invalid. Please check your license key.";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                lblResult.Text = $"An error occurred: {ex.Message}";
+                // Catch any other errors like JSON parsing or unexpected exceptions
+                lblResult.Text = "License invalid. Please check your license key.";
             }
         }
 
@@ -79,35 +85,51 @@ namespace Forms1
         {
             comboBoxSubCompanies.Items.Clear();
 
+            // Add the "Select a sub-company" option at the top
+            comboBoxSubCompanies.Items.Add("Select a sub-company");
+
             if (subCompanies.Count == 0)
             {
-                // If no sub-companies, inform the user
                 comboBoxSubCompanies.Items.Add("No sub-companies available.");
                 lblResult.Text = "No sub-companies found.";
                 return;
             }
 
             // Add each SubCompany to the ComboBox
-            foreach (var SubCompany in subCompanies)
+            foreach (var subCompany in subCompanies)
             {
                 comboBoxSubCompanies.Items.Add(new ComboBoxItem
                 {
-                    Text = SubCompany.subCompanyName,  // Display the name
-                    Value = SubCompany.subCompanyId    // Store the ID in the Value
+                    Text = subCompany.subCompanyName,
+                    Value = subCompany.subCompanyId
                 });
             }
 
-            // Set the default selected item (first item, if available)
+            // Set the default selected item as "Select a sub-company"
             comboBoxSubCompanies.SelectedIndex = 0;
         }
 
         // ComboBox selection changed event handler
         private void comboBoxSubCompanies_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (comboBoxSubCompanies.SelectedItem is ComboBoxItem selectedItem)
+            // Check if the selected value is not the default "Select a sub-company"
+            if (comboBoxSubCompanies.SelectedIndex > 0)
             {
-                int selectedId = selectedItem.Value;
-                MessageBox.Show($"Selected SubCompany ID: {selectedId}");
+                // Get the selected SubCompanyItem
+                if (comboBoxSubCompanies.SelectedItem is ComboBoxItem selectedItem)
+                {
+                    int selectedId = selectedItem.Value;  // Get the selected SubCompany ID
+                    string validationResponse = lblResult.Text;  // Use the actual validation result message
+
+                    // Now create Form2 and pass both the validation result and the SubCompanyId
+                    Form2 subCompanyDetailsForm = new Form2(validationResponse, selectedId.ToString()); // Ensure the second param is a string
+                    subCompanyDetailsForm.Show();  // Show Form2 with the validation result and sub-company details
+                }
+            }
+            else
+            {
+                // Handle the case where "Select a sub-company" is still selected
+                lblResult.Text = "Please select a valid sub-company.";
             }
         }
     }
