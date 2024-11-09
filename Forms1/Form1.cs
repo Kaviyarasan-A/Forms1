@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Forms1
@@ -21,6 +22,7 @@ namespace Forms1
         {
             string licenseKey = textBox2.Text.Trim();
 
+            // Check if the license key is empty or null
             if (string.IsNullOrEmpty(licenseKey))
             {
                 lblResult.Text = "Please enter a valid license key.";
@@ -33,17 +35,35 @@ namespace Forms1
 
                 // Properly build the URL with URL encoding for the query parameter
                 string url = $"https://localhost:44395/api/LicenseValidation/ValidateLicense/validate?licenceKey={Uri.EscapeDataString(licenseKey)}";
-                var response = await client.GetStringAsync(url);
 
-                // Parse the JSON response
-                JObject parsedJson = JObject.Parse(response);
-                string message = parsedJson["message"]?.ToString()?.Trim();
+                // Make the HTTP request and get the full response
+                HttpResponseMessage response = await client.GetAsync(url);
 
+                // Check if the status code indicates a failure (e.g., 400 or 500 series errors)
+                if (!response.IsSuccessStatusCode)
+                {
+                    // Read the response body as a string (error message from the API)
+                    string errorResponseBody = await response.Content.ReadAsStringAsync();
+
+                    // Directly show the response body content (without showing HTTP status)
+                    lblResult.Text = errorResponseBody;
+
+                    return;  // Exit early as the error has been handled
+                }
+
+                // If the status code is 200 OK, process the response
+                string responseBody = await response.Content.ReadAsStringAsync();
+
+                // Parse the JSON response from the API
+                JObject parsedJson = JObject.Parse(responseBody);
+                string message = parsedJson["message"]?.ToString()?.Trim();  // Extract the "message" field
+
+                // Check if the message from the API is not null or empty
                 if (!string.IsNullOrEmpty(message))
                 {
                     Console.WriteLine($"Parsed message: {message}");
 
-                    // Check the response message and display the appropriate message
+                    // Handle the license validation response based on the "message"
                     if (message.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
                     {
                         // Deserialize SubCompanies from the response
@@ -52,33 +72,49 @@ namespace Forms1
                         // Call method to populate the ComboBox with sub-companies
                         PopulateSubCompanies(subCompanies);
 
+                        // Show success message
                         lblResult.Text = "License validated successfully.";
                     }
                     else if (message.Equals("License expired.", StringComparison.OrdinalIgnoreCase))
                     {
-                        lblResult.Text = "License expired.";  // Show expired license message
+                        // Show specific message for expired license
+                        lblResult.Text = "The license has expired. Please renew your license.";
                     }
                     else
                     {
-                        lblResult.Text = "License invalid. Please check your license key.";
+                        // Show general invalid license message for any other response
+                        lblResult.Text = "The license key is invalid. Please check the key or contact support.";
                     }
                 }
                 else
                 {
-                    lblResult.Text = "Response message is missing or null.";
+                    // If the API response doesn't contain a message field
+                    lblResult.Text = "The server response is missing a message. Please contact support.";
                 }
             }
-            catch (HttpRequestException)
+            catch (HttpRequestException ex)
             {
                 // Catch HTTP-related issues like network errors, unreachable API, etc.
-                lblResult.Text = "License invalid. Please check your license key.";
+                lblResult.Text = "Network error occurred. Please check your connection or try again later.";
+                Console.WriteLine($"HttpRequestException: {ex.Message}");  // Log detailed error for developers
             }
-            catch (Exception)
+            catch (JsonException ex)
             {
-                // Catch any other errors like JSON parsing or unexpected exceptions
-                lblResult.Text = "License invalid. Please check your license key.";
+                // Handle JSON parsing errors (invalid JSON format from API)
+                lblResult.Text = "Error parsing server response. Please contact support.";
+                Console.WriteLine($"JsonException: {ex.Message}");  // Log detailed error for developers
+            }
+            catch (Exception ex)
+            {
+                // Catch any unexpected errors
+                lblResult.Text = "An unexpected error occurred. Please try again later.";
+                Console.WriteLine($"Exception: {ex.Message}");  // Log detailed error for developers
             }
         }
+
+
+
+
 
         // Method to populate the ComboBox with SubCompanies
         private void PopulateSubCompanies(List<SubCompany> subCompanies)
