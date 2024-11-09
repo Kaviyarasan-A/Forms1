@@ -48,6 +48,9 @@ namespace Forms1
                     // Directly show the response body content (without showing HTTP status)
                     lblResult.Text = errorResponseBody;
 
+                    // Optionally reset ComboBox if you want to clear it after failure
+                    comboBoxSubCompanies.Items.Clear();
+
                     return;  // Exit early as the error has been handled
                 }
 
@@ -79,17 +82,26 @@ namespace Forms1
                     {
                         // Show specific message for expired license
                         lblResult.Text = "The license has expired. Please renew your license.";
+
+                        // Optionally clear ComboBox for expired license
+                        comboBoxSubCompanies.Items.Clear();
                     }
                     else
                     {
                         // Show general invalid license message for any other response
                         lblResult.Text = "The license key is invalid. Please check the key or contact support.";
+
+                        // Optionally clear ComboBox for invalid license
+                        comboBoxSubCompanies.Items.Clear();
                     }
                 }
                 else
                 {
                     // If the API response doesn't contain a message field
                     lblResult.Text = "The server response is missing a message. Please contact support.";
+
+                    // Optionally clear ComboBox for missing message
+                    comboBoxSubCompanies.Items.Clear();
                 }
             }
             catch (HttpRequestException ex)
@@ -112,14 +124,10 @@ namespace Forms1
             }
         }
 
-
-
-
-
         // Method to populate the ComboBox with SubCompanies
         private void PopulateSubCompanies(List<SubCompany> subCompanies)
         {
-            comboBoxSubCompanies.Items.Clear();
+            comboBoxSubCompanies.Items.Clear();  // Clear the ComboBox before adding new items
 
             // Add the "Select a sub-company" option at the top
             comboBoxSubCompanies.Items.Add("Select a sub-company");
@@ -127,7 +135,6 @@ namespace Forms1
             if (subCompanies.Count == 0)
             {
                 comboBoxSubCompanies.Items.Add("No sub-companies available.");
-                lblResult.Text = "No sub-companies found.";
                 return;
             }
 
