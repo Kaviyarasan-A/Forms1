@@ -33,110 +33,75 @@ namespace Forms1
             {
                 lblResult.Text = "Validating...";
 
+                // Clear the ComboBox before performing the validation to ensure it's empty for new data
+                comboBoxSubCompanies.Items.Clear();
+                comboBoxSubCompanies.Items.Add("Select a sub-company"); // Optional: Add default message when no sub-companies
+
                 // Properly build the URL with URL encoding for the query parameter
                 string url = $"https://localhost:44395/api/LicenseValidation/ValidateLicense/validate?licenceKey={Uri.EscapeDataString(licenseKey)}";
 
                 // Make the HTTP request and get the full response
                 HttpResponseMessage response = await client.GetAsync(url);
 
-                // Check if the status code indicates a failure (e.g., 400 or 500 series errors)
                 if (!response.IsSuccessStatusCode)
                 {
-                    // Read the response body as a string (error message from the API)
                     string errorResponseBody = await response.Content.ReadAsStringAsync();
-
-                    // Directly show the response body content (without showing HTTP status)
                     lblResult.Text = errorResponseBody;
-
-                    // Optionally reset ComboBox if you want to clear it after failure
                     comboBoxSubCompanies.Items.Clear();
-
                     return;  // Exit early as the error has been handled
                 }
 
-                // If the status code is 200 OK, process the response
                 string responseBody = await response.Content.ReadAsStringAsync();
-
-                // Parse the JSON response from the API
                 JObject parsedJson = JObject.Parse(responseBody);
-                string message = parsedJson["message"]?.ToString()?.Trim();  // Extract the "message" field
+                string message = parsedJson["message"]?.ToString()?.Trim(); // Extract the "message" field
 
-                // Check if the message from the API is not null or empty
                 if (!string.IsNullOrEmpty(message))
                 {
-                    Console.WriteLine($"Parsed message: {message}");
-
-                    // Handle the license validation response based on the "message"
                     if (message.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Deserialize SubCompanies from the response
                         var subCompanies = parsedJson["subCompanies"]?.ToObject<List<SubCompany>>() ?? new List<SubCompany>();
 
-                        // Call method to populate the ComboBox with sub-companies
-                        PopulateSubCompanies(subCompanies);
+                        if (subCompanies.Count == 0)
+                        {
+                            // Pass the necessary arguments to Form2
+                            Form2 noSubCompanyForm = new Form2(message, "No sub-companies available.", licenseKey);
+                            noSubCompanyForm.Show();
+                            return; // Exit from the current method to prevent further actions
+                        }
 
-                        // Show success message
+                        PopulateSubCompanies(subCompanies);  // Populate the ComboBox with sub-companies
                         lblResult.Text = "License validated successfully.";
                     }
                     else if (message.Equals("License expired.", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Show specific message for expired license
                         lblResult.Text = "The license has expired. Please renew your license.";
-
-                        // Optionally clear ComboBox for expired license
                         comboBoxSubCompanies.Items.Clear();
                     }
                     else
                     {
-                        // Show general invalid license message for any other response
                         lblResult.Text = "The license key is invalid. Please check the key or contact support.";
-
-                        // Optionally clear ComboBox for invalid license
                         comboBoxSubCompanies.Items.Clear();
                     }
                 }
                 else
                 {
-                    // If the API response doesn't contain a message field
                     lblResult.Text = "The server response is missing a message. Please contact support.";
-
-                    // Optionally clear ComboBox for missing message
                     comboBoxSubCompanies.Items.Clear();
                 }
             }
-            catch (HttpRequestException ex)
-            {
-                // Catch HTTP-related issues like network errors, unreachable API, etc.
-                lblResult.Text = "Network error occurred. Please check your connection or try again later.";
-                Console.WriteLine($"HttpRequestException: {ex.Message}");  // Log detailed error for developers
-            }
-            catch (JsonException ex)
-            {
-                // Handle JSON parsing errors (invalid JSON format from API)
-                lblResult.Text = "Error parsing server response. Please contact support.";
-                Console.WriteLine($"JsonException: {ex.Message}");  // Log detailed error for developers
-            }
             catch (Exception ex)
             {
-                // Catch any unexpected errors
-                lblResult.Text = "An unexpected error occurred. Please try again later.";
-                Console.WriteLine($"Exception: {ex.Message}");  // Log detailed error for developers
+                lblResult.Text = "An error occurred. Please try again later.";
+                Console.WriteLine($"Exception: {ex.Message}");
             }
         }
 
         // Method to populate the ComboBox with SubCompanies
         private void PopulateSubCompanies(List<SubCompany> subCompanies)
         {
-            comboBoxSubCompanies.Items.Clear();  // Clear the ComboBox before adding new items
-
-            // Add the "Select a sub-company" option at the top
-            comboBoxSubCompanies.Items.Add("Select a sub-company");
-
-            if (subCompanies.Count == 0)
-            {
-                comboBoxSubCompanies.Items.Add("No sub-companies available.");
-                return;
-            }
+            // Clear the ComboBox before adding new items
+            comboBoxSubCompanies.Items.Clear();
+            comboBoxSubCompanies.Items.Add("Select a sub-company");  // Optional: Add the default "Select a sub-company"
 
             // Add each SubCompany to the ComboBox
             foreach (var subCompany in subCompanies)
@@ -165,7 +130,7 @@ namespace Forms1
                     string validationResponse = lblResult.Text;  // Use the actual validation result message
 
                     // Now create Form2 and pass both the validation result and the SubCompanyId
-                    Form2 subCompanyDetailsForm = new Form2(validationResponse, selectedId.ToString()); // Ensure the second param is a string
+                    Form2 subCompanyDetailsForm = new Form2(validationResponse, selectedId.ToString(), textBox2.Text.Trim()); // Pass the license key here
                     subCompanyDetailsForm.Show();  // Show Form2 with the validation result and sub-company details
                 }
             }
@@ -177,8 +142,8 @@ namespace Forms1
         }
     }
 
-    // Class representing a SubCompany
-    public class SubCompany
+        // Class representing a SubCompany
+        public class SubCompany
     {
         public int subCompanyId { get; set; }
         public string subCompanyName { get; set; }
