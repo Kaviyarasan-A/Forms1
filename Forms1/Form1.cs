@@ -142,8 +142,8 @@ namespace Forms1
         }
     }
 
-        // Class representing a SubCompany
-        public class SubCompany
+    // Class representing a SubCompany
+    public class SubCompany
     {
         public int subCompanyId { get; set; }
         public string subCompanyName { get; set; }
