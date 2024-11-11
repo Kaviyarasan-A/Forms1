@@ -20,7 +20,7 @@ namespace Forms1
         // Button click event to trigger the license validation
         private async void button1_Click(object sender, EventArgs e)
         {
-            string licenseKey = textBox2.Text.Trim();
+            string licenseKey = textBox2.Text.Trim();  // This is the input license key from the text box.
 
             // Check if the license key is empty or null
             if (string.IsNullOrEmpty(licenseKey))
@@ -53,29 +53,44 @@ namespace Forms1
 
                 string responseBody = await response.Content.ReadAsStringAsync();
                 JObject parsedJson = JObject.Parse(responseBody);
+
                 string message = parsedJson["message"]?.ToString()?.Trim(); // Extract the "message" field
 
                 if (!string.IsNullOrEmpty(message))
                 {
-                    if (message.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
+                    if (message.Equals("License is valid, but no sub-companies available.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string companyName = parsedJson["companyName"]?.ToString();
+                        string apiLicenseKey = parsedJson["licenseKey"]?.ToString();  // Renamed this to apiLicenseKey to avoid conflict
+                        string validFrom = parsedJson["validFrom"]?.ToString();
+                        string validTo = parsedJson["validTo"]?.ToString();
+
+                        // When no sub-companies are available, redirect to Form2 with the relevant data
+                        Form2 noSubCompanyForm = new Form2(message, companyName, apiLicenseKey, validFrom, validTo);
+                        noSubCompanyForm.Show();
+                        return; // Exit early as Form2 has been opened
+                    }
+
+                    // Handle other cases like "License expired" or "Invalid license"
+                    if (message.Equals("License expired.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lblResult.Text = "The license has expired. Please renew your license.";
+                        comboBoxSubCompanies.Items.Clear();
+                    }
+                    else if (message.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
                     {
                         var subCompanies = parsedJson["subCompanies"]?.ToObject<List<SubCompany>>() ?? new List<SubCompany>();
 
                         if (subCompanies.Count == 0)
                         {
-                            // Pass the necessary arguments to Form2
-                            Form2 noSubCompanyForm = new Form2(message, "No sub-companies available.", licenseKey);
+                            // When no sub-companies are available, redirect to Form2 with the message and license key
+                            Form2 noSubCompanyForm = new Form2(message, "No sub-companies available.", licenseKey, "", "");
                             noSubCompanyForm.Show();
-                            return; // Exit from the current method to prevent further actions
+                            return; // Exit early as Form2 has been opened
                         }
 
                         PopulateSubCompanies(subCompanies);  // Populate the ComboBox with sub-companies
                         lblResult.Text = "License validated successfully.";
-                    }
-                    else if (message.Equals("License expired.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        lblResult.Text = "The license has expired. Please renew your license.";
-                        comboBoxSubCompanies.Items.Clear();
                     }
                     else
                     {
@@ -130,7 +145,7 @@ namespace Forms1
                     string validationResponse = lblResult.Text;  // Use the actual validation result message
 
                     // Now create Form2 and pass both the validation result and the SubCompanyId
-                    Form2 subCompanyDetailsForm = new Form2(validationResponse, selectedId.ToString(), textBox2.Text.Trim()); // Pass the license key here
+                    Form2 subCompanyDetailsForm = new Form2(validationResponse, selectedId.ToString(), textBox2.Text.Trim(), "", "");
                     subCompanyDetailsForm.Show();  // Show Form2 with the validation result and sub-company details
                 }
             }

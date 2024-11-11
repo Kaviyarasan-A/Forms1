@@ -33,16 +33,16 @@ namespace Forms1
 
             // textBox2 (License Key Input)
             this.textBox2.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.textBox2.Location = new System.Drawing.Point(20, 40);
+            this.textBox2.Location = new System.Drawing.Point(20, 50);  // Adjusted for better positioning
             this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(280, 26);  // Adjusted size for better appearance
+            this.textBox2.Size = new System.Drawing.Size(350, 26);  // Increased width for more space
             this.textBox2.TabIndex = 0;
 
             // button1 (Validate License Button)
             this.button1.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
-            this.button1.Location = new System.Drawing.Point(20, 80);
+            this.button1.Location = new System.Drawing.Point(20, 90);  // Adjusted position
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(280, 40);  // Larger button for better clickability
+            this.button1.Size = new System.Drawing.Size(350, 45);  // Increased button height for better usability
             this.button1.TabIndex = 1;
             this.button1.Text = "Validate License";
             this.button1.BackColor = System.Drawing.Color.LightSkyBlue;
@@ -54,7 +54,7 @@ namespace Forms1
             // label1 (Enter License Key Label)
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular);
-            this.label1.Location = new System.Drawing.Point(20, 10);
+            this.label1.Location = new System.Drawing.Point(20, 20);  // Adjusted positioning
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(151, 21);
             this.label1.TabIndex = 2;
@@ -63,7 +63,7 @@ namespace Forms1
             // lblResult (Result Label)
             this.lblResult.AutoSize = true;
             this.lblResult.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular);
-            this.lblResult.Location = new System.Drawing.Point(20, 130);
+            this.lblResult.Location = new System.Drawing.Point(20, 150);  // Moved down for more space
             this.lblResult.Name = "lblResult";
             this.lblResult.Size = new System.Drawing.Size(56, 19);
             this.lblResult.TabIndex = 3;
@@ -73,9 +73,9 @@ namespace Forms1
             this.comboBoxSubCompanies.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.comboBoxSubCompanies.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxSubCompanies.FormattingEnabled = true;
-            this.comboBoxSubCompanies.Location = new System.Drawing.Point(20, 170);
+            this.comboBoxSubCompanies.Location = new System.Drawing.Point(20, 190);  // Adjusted to fit the new layout
             this.comboBoxSubCompanies.Name = "comboBoxSubCompanies";
-            this.comboBoxSubCompanies.Size = new System.Drawing.Size(280, 26);  // Adjust size for consistency
+            this.comboBoxSubCompanies.Size = new System.Drawing.Size(350, 26);  // Increased width for consistency
             this.comboBoxSubCompanies.TabIndex = 4;
             this.comboBoxSubCompanies.SelectedIndexChanged += new System.EventHandler(this.comboBoxSubCompanies_SelectedIndexChanged);
 
@@ -83,13 +83,13 @@ namespace Forms1
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.label2.ForeColor = System.Drawing.Color.Gray;
-            this.label2.Location = new System.Drawing.Point(20, 210);
+            this.label2.Location = new System.Drawing.Point(20, 230);  // Adjusted position
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(0, 19);
             this.label2.TabIndex = 5;
 
             // Form1
-            this.ClientSize = new System.Drawing.Size(320, 270);  // Adjusted form size
+            this.ClientSize = new System.Drawing.Size(400, 300);  // Enlarged form size for better appearance
             this.Controls.Add(this.label2);
             this.Controls.Add(this.comboBoxSubCompanies);
             this.Controls.Add(this.lblResult);
