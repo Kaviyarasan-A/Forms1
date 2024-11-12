@@ -1,11 +1,15 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json.Linq;
+using System.Xml.Linq;
+using System.Collections.Generic;
+using System.Xml;
 
 namespace Forms1
 {
@@ -57,141 +61,182 @@ namespace Forms1
                 return;
             }
 
-            // Load the sub-company details for the given subCompanyNameOrId
-            LoadSubCompanyDetails(subCompanyNameOrId);
+            // If license is valid locally, load from local XML
+            var (isValid, message) = ValidateLicenseFromXml(licenseKey);
+            if (isValid)
+            {
+                // Load the sub-company details from local XML if valid
+                LoadSubCompanyDetailsFromXml(licenseKey);
+            }
+            else
+            {
+                // If license is invalid locally, fetch details from the API
+                FetchSubCompanyDetailsFromApi(licenseKey);
+            }
         }
 
-        private async void LoadSubCompanyDetails(string subCompanyNameOrId)
+        // Function to validate the license and fetch details from local XML
+        private (bool isValid, string message) ValidateLicenseFromXml(string licenseKey)
+        {
+            string filePath = @"C:\Users\aruch\OneDrive\Documents\SubCompanyDetails.xml"; // Local XML file path
+            try
+            {
+                // Load the XML document
+                XDocument xmlDoc = XDocument.Load(filePath);
+
+                // Search for the license key in the XML (with trimming)
+                var license = xmlDoc.Descendants("License")
+                    .FirstOrDefault(l => l.Element("LicenseKey")?.Value?.Trim() == licenseKey?.Trim());
+
+                // If license is found
+                if (license != null)
+                {
+                    bool isValid = bool.Parse(license.Element("IsValid")?.Value ?? "false");
+                    if (isValid)
+                    {
+                        return (true, "License is valid.");
+                    }
+                    else
+                    {
+                        return (false, "The license is invalid.");
+                    }
+                }
+                else
+                {
+                    return (false, "License key not found in the local file.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error reading the XML file: {ex.Message}");
+            }
+        }
+
+        // Function to load sub-company details from the local XML file
+        private void LoadSubCompanyDetailsFromXml(string licenseKey)
         {
             try
             {
-                lblSubCompanyDetails.Text = "Fetching sub-company details...";
+                lblSubCompanyDetails.Text = "Fetching sub-company details from local XML...";
 
-                // Check if the subCompanyNameOrId is a number (ID)
-                bool isId = int.TryParse(subCompanyNameOrId, out int subCompanyId);
+                // File path to local XML
+                string filePath = @"C:\Users\aruch\OneDrive\Documents\SubCompanyDetails.xml";
 
-                // API URL to fetch sub-company details by ID or name
-                string url = isId
-                    ? $"https://localhost:44395/api/LicenseValidation/GetSubCompanyDetailsById/subcompany/id/{subCompanyId}"
-                    : $"https://localhost:44395/api/LicenseValidation/GetSubCompanyDetails/subcompany/{Uri.EscapeDataString(subCompanyNameOrId)}";
-
-                var response = await client.GetAsync(url);
-
-                if (!response.IsSuccessStatusCode)
+                // Check if the file exists
+                if (!File.Exists(filePath))
                 {
-                    string responseContent = await response.Content.ReadAsStringAsync();
-                    lblSubCompanyDetails.Text = $"Error fetching details: {response.StatusCode}. Response: {responseContent}";
+                    lblSubCompanyDetails.Text = "XML file not found at the specified path.";
                     return;
                 }
 
-                var responseBody = await response.Content.ReadAsStringAsync();
-                JObject parsedJson = JObject.Parse(responseBody);
+                // Load the XML file
+                XDocument xmlDoc = XDocument.Load(filePath);
 
-                subCompanyName = parsedJson["subCompanyName"]?.ToString();
-                connectionStringOnline = parsedJson["connectionStringOnline"]?.ToString();
-                connectionStringOffline = parsedJson["connectionStringOffline"]?.ToString();
-                subCompanyId = (int)(parsedJson["subCompanyId"] ?? 0);
+                // Search for the License element based on the LicenseKey
+                var licenseElement = xmlDoc.Descendants("License")
+                    .FirstOrDefault(l => string.Equals(l.Element("LicenseKey")?.Value?.Trim(), licenseKey?.Trim(), StringComparison.OrdinalIgnoreCase));
 
-                // Display the fetched details in the labels
-                lblSubCompanyDetails.Text = "Sub-company details loaded successfully.";
-                lblSubCompanyName.Text = $"SubCompany: {subCompanyName}";
-                lblConnectionStringOnline.Text = $"Online Connection: {connectionStringOnline}";
-                lblConnectionStringOffline.Text = $"Offline Connection: {connectionStringOffline}";
-                lblSubCompanyId.Text = $"SubCompany ID: {subCompanyId}";
+                if (licenseElement != null)
+                {
+                    // Extract sub-company details from the License element
+                    subCompanyName = licenseElement.Element("SubCompanyName")?.Value ?? "Not Available";
+                    connectionStringOnline = licenseElement.Element("ConnectionStringOnline")?.Value ?? "Not Available";
+                    connectionStringOffline = licenseElement.Element("ConnectionStringOffline")?.Value ?? "Not Available";
+                    subCompanyId = int.Parse(licenseElement.Element("Id")?.Value ?? "0");
 
-                // Automatically download the XML file after loading the details
-                await DownloadXmlAutomatically();
+                    // Display the fetched details in the labels
+                    lblSubCompanyDetails.Text = "Sub-company details loaded from XML.";
+                    lblSubCompanyName.Text = $"SubCompany: {subCompanyName}";
+                    lblConnectionStringOnline.Text = $"Online Connection: {connectionStringOnline}";
+                    lblConnectionStringOffline.Text = $"Offline Connection: {connectionStringOffline}";
+                    lblSubCompanyId.Text = $"SubCompany ID: {subCompanyId}";
+                }
+                else
+                {
+                    lblSubCompanyDetails.Text = $"License key not found in the local XML for LicenseKey: {licenseKey}";
+                }
+            }
+            catch (FileNotFoundException fnfEx)
+            {
+                lblSubCompanyDetails.Text = $"File not found: {fnfEx.Message}";
+            }
+            catch (XmlException xmlEx)
+            {
+                lblSubCompanyDetails.Text = $"Error parsing XML: {xmlEx.Message}";
             }
             catch (Exception ex)
             {
-                lblSubCompanyDetails.Text = $"Error fetching details: {ex.Message}";
+                lblSubCompanyDetails.Text = $"Error loading sub-company details: {ex.Message}";
             }
         }
 
-        private async Task DownloadXmlAutomatically()
+        // Function to fetch sub-company details from the API
+        private async void FetchSubCompanyDetailsFromApi(string licenseKey)
         {
-            lblDownloadStatus.Text = "Downloading XML file... Please wait.";
-            lblDownloadStatus.ForeColor = System.Drawing.Color.Black; // Initial color while downloading
-
-            string xmlContent = ConvertToXml(subCompanyName, connectionStringOnline, connectionStringOffline, subCompanyId);
-            string encryptedXml = EncryptString(xmlContent, key, iv);
-
-            string directoryPath = @"C:\Users\aruch\source\repos\SubCompanyConfig";
-            string fileName = $"{subCompanyName.Replace(" ", "_").Replace(":", "_").Replace("/", "_").Replace("\\", "_")}.xml";
-            string filePath = Path.Combine(directoryPath, fileName);
-
             try
             {
-                if (!Directory.Exists(directoryPath))
+                lblSubCompanyDetails.Text = "Fetching sub-company details from API...";
+
+                // Construct the API URL for license validation
+                string url = $"https://localhost:44395/api/LicenseValidation/ValidateLicense/validate?licenceKey={Uri.EscapeDataString(licenseKey)}";
+
+                // Make the HTTP request
+                HttpResponseMessage response = await client.GetAsync(url);
+
+                // Check if the request was successful
+                if (!response.IsSuccessStatusCode)
                 {
-                    Directory.CreateDirectory(directoryPath);
+                    lblSubCompanyDetails.Text = $"Error: {response.StatusCode}";
+                    return;
                 }
 
-                await Task.Run(() =>
-                {
-                    System.IO.File.WriteAllText(filePath, encryptedXml);
-                });
+                // Parse the response
+                string responseBody = await response.Content.ReadAsStringAsync();
+                JObject parsedJson = JObject.Parse(responseBody);
+                string messageFromApi = parsedJson["message"]?.ToString()?.Trim();
 
-                // Update status with green color (success)
-                lblDownloadStatus.Text = "Download successful! File saved.";
-                lblDownloadStatus.ForeColor = System.Drawing.Color.Green;
+                // Process the API response
+                if (messageFromApi.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
+                {
+                    var subCompaniesFromApi = parsedJson["subCompanies"]?.ToObject<List<SubCompany>>() ?? new List<SubCompany>();
+
+                    if (subCompaniesFromApi.Any())
+                    {
+                        // Display the fetched details in the labels
+                        var subCompany = subCompaniesFromApi.First(); // Assuming the API returns a list of sub-companies
+                        lblSubCompanyDetails.Text = "Sub-company details loaded from API.";
+                        lblSubCompanyName.Text = $"SubCompany: {subCompany.subCompanyName}";
+                        lblConnectionStringOnline.Text = $"Online Connection: {subCompany.connectionStringOnline}";
+                        lblConnectionStringOffline.Text = $"Offline Connection: {subCompany.connectionStringOffline}";
+                        lblSubCompanyId.Text = $"SubCompany ID: {subCompany.subCompanyId}";
+                    }
+                    else
+                    {
+                        lblSubCompanyDetails.Text = "No sub-companies found in the API response.";
+                    }
+                }
+                else
+                {
+                    lblSubCompanyDetails.Text = messageFromApi;
+                }
             }
             catch (Exception ex)
             {
-                // Update status with red color (error)
-                lblDownloadStatus.Text = $"Error downloading the file: {ex.Message}";
-                lblDownloadStatus.ForeColor = System.Drawing.Color.Red;
+                lblSubCompanyDetails.Text = $"Error fetching sub-company details from API: {ex.Message}";
             }
         }
 
-        private string ConvertToXml(string subCompanyName, string connectionStringOnline, string connectionStringOffline, int subCompanyId)
+        // SubCompany model for API response
+        public class SubCompany
         {
-            System.Xml.XmlDocument xmlDoc = new System.Xml.XmlDocument();
-            System.Xml.XmlElement rootElement = xmlDoc.CreateElement("SubCompanyConfig");
-            xmlDoc.AppendChild(rootElement);
-
-            System.Xml.XmlElement nameElement = xmlDoc.CreateElement("SubCompanyName");
-            nameElement.InnerText = subCompanyName;
-            rootElement.AppendChild(nameElement);
-
-            System.Xml.XmlElement onlineConnectionElement = xmlDoc.CreateElement("ConnectionStringOnline");
-            onlineConnectionElement.InnerText = connectionStringOnline;
-            rootElement.AppendChild(onlineConnectionElement);
-
-            System.Xml.XmlElement offlineConnectionElement = xmlDoc.CreateElement("ConnectionStringOffline");
-            offlineConnectionElement.InnerText = connectionStringOffline;
-            rootElement.AppendChild(offlineConnectionElement);
-
-            System.Xml.XmlElement idElement = xmlDoc.CreateElement("SubCompanyId");
-            idElement.InnerText = subCompanyId.ToString();
-            rootElement.AppendChild(idElement);
-
-            return xmlDoc.OuterXml;
+            public int subCompanyId { get; set; }
+            public string subCompanyName { get; set; }
+            public string connectionStringOnline { get; set; }
+            public string connectionStringOffline { get; set; }
         }
 
+        // AES encryption key and IV generation
         private static byte[] GenerateRandomKey() => Aes.Create().Key;
         private static byte[] GenerateRandomIV() => Aes.Create().IV;
-
-        private string EncryptString(string plainText, byte[] key, byte[] iv)
-        {
-            using (Aes aesAlg = Aes.Create())
-            {
-                aesAlg.Key = key;
-                aesAlg.IV = iv;
-                ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
-
-                using (MemoryStream msEncrypt = new MemoryStream())
-                {
-                    using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
-                        {
-                            swEncrypt.Write(plainText);
-                        }
-                    }
-                    return Convert.ToBase64String(msEncrypt.ToArray());
-                }
-            }
-        }
     }
 }

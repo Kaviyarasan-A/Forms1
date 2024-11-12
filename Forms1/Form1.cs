@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Newtonsoft.Json;
+using System.Xml.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace Forms1
@@ -15,6 +16,62 @@ namespace Forms1
         public Form1()
         {
             InitializeComponent();
+        }
+
+        // Method to validate the license against a local XML file
+        private (bool isValid, List<SubCompany> subCompanies, string message) ValidateLicenseFromXml(string licenseKey)
+        {
+            string filePath = @"C:\Users\aruch\OneDrive\Documents\Filetocheck.xml"; // Local XML file path
+            List<SubCompany> subCompanies = new List<SubCompany>();
+            string message = "";
+
+            try
+            {
+                if (System.IO.File.Exists(filePath))  // Check if the file exists
+                {
+                    XDocument xmlDoc = XDocument.Load(filePath);  // Load XML document
+                    var license = xmlDoc.Descendants("License")
+                        .Where(l => l.Element("LicenseKey")?.Value == licenseKey)
+                        .FirstOrDefault();
+
+                    if (license != null)
+                    {
+                        bool isValid = bool.Parse(license.Element("IsValid")?.Value ?? "false");
+                        if (isValid)
+                        {
+                            // License is valid, parse sub-companies
+                            subCompanies = license.Descendants("SubCompany")
+                                .Select(sc => new SubCompany
+                                {
+                                    subCompanyId = int.Parse(sc.Element("Id")?.Value ?? "0"),
+                                    subCompanyName = sc.Element("Name")?.Value
+                                })
+                                .ToList();
+
+                            message = "License is valid.";
+                            return (true, subCompanies, message);
+                        }
+                        else
+                        {
+                            message = "The license is invalid.";
+                        }
+                    }
+                    else
+                    {
+                        message = "License key not found in the local file.";
+                    }
+                }
+                else
+                {
+                    message = $"The XML file at {filePath} does not exist. Please check the file path.";
+                }
+            }
+            catch (Exception ex)
+            {
+                message = $"Error reading the XML file: {ex.Message}";
+            }
+
+            return (false, subCompanies, message);
         }
 
         // Button click event to trigger the license validation
@@ -33,75 +90,81 @@ namespace Forms1
             {
                 lblResult.Text = "Validating...";
 
-                // Clear the ComboBox before performing the validation to ensure it's empty for new data
-                comboBoxSubCompanies.Items.Clear();
-                comboBoxSubCompanies.Items.Add("Select a sub-company"); // Optional: Add default message when no sub-companies
+                // Check the license in the local XML file first
+                var (isValid, subCompanies, message) = ValidateLicenseFromXml(licenseKey);
 
-                // Properly build the URL with URL encoding for the query parameter
-                string url = $"https://localhost:44395/api/LicenseValidation/ValidateLicense/validate?licenceKey={Uri.EscapeDataString(licenseKey)}";
-
-                // Make the HTTP request and get the full response
-                HttpResponseMessage response = await client.GetAsync(url);
-
-                if (!response.IsSuccessStatusCode)
+                if (isValid)
                 {
-                    string errorResponseBody = await response.Content.ReadAsStringAsync();
-                    lblResult.Text = errorResponseBody;
-                    comboBoxSubCompanies.Items.Clear();
-                    return;  // Exit early as the error has been handled
-                }
-
-                string responseBody = await response.Content.ReadAsStringAsync();
-                JObject parsedJson = JObject.Parse(responseBody);
-
-                string message = parsedJson["message"]?.ToString()?.Trim(); // Extract the "message" field
-
-                if (!string.IsNullOrEmpty(message))
-                {
-                    if (message.Equals("License is valid, but no sub-companies available.", StringComparison.OrdinalIgnoreCase))
+                    // If no sub-companies exist, open Form2 and show message
+                    if (subCompanies.Count == 0)
                     {
-                        string companyName = parsedJson["companyName"]?.ToString();
-                        string apiLicenseKey = parsedJson["licenseKey"]?.ToString();  // Renamed this to apiLicenseKey to avoid conflict
-                        string validFrom = parsedJson["validFrom"]?.ToString();
-                        string validTo = parsedJson["validTo"]?.ToString();
-
-                        // When no sub-companies are available, redirect to Form2 with the relevant data
-                        Form2 noSubCompanyForm = new Form2(message, companyName, apiLicenseKey, validFrom, validTo);
+                        // Redirect to Form2 if there are no sub-companies
+                        Form2 noSubCompanyForm = new Form2("License is valid, but no sub-companies are available.", "", licenseKey, "", "");
                         noSubCompanyForm.Show();
-                        return; // Exit early as Form2 has been opened
+                        return;
                     }
 
-                    // Handle other cases like "License expired" or "Invalid license"
-                    if (message.Equals("License expired.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        lblResult.Text = "The license has expired. Please renew your license.";
-                        comboBoxSubCompanies.Items.Clear();
-                    }
-                    else if (message.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var subCompanies = parsedJson["subCompanies"]?.ToObject<List<SubCompany>>() ?? new List<SubCompany>();
-
-                        if (subCompanies.Count == 0)
-                        {
-                            // When no sub-companies are available, redirect to Form2 with the message and license key
-                            Form2 noSubCompanyForm = new Form2(message, "No sub-companies available.", licenseKey, "", "");
-                            noSubCompanyForm.Show();
-                            return; // Exit early as Form2 has been opened
-                        }
-
-                        PopulateSubCompanies(subCompanies);  // Populate the ComboBox with sub-companies
-                        lblResult.Text = "License validated successfully.";
-                    }
-                    else
-                    {
-                        lblResult.Text = "The license key is invalid. Please check the key or contact support.";
-                        comboBoxSubCompanies.Items.Clear();
-                    }
+                    // If sub-companies exist, populate the ComboBox
+                    PopulateSubCompanies(subCompanies);
+                    lblResult.Text = "License validated successfully.";
                 }
                 else
                 {
-                    lblResult.Text = "The server response is missing a message. Please contact support.";
+                    lblResult.Text = message; // Show the message from XML validation
                     comboBoxSubCompanies.Items.Clear();
+
+                    // If the license key is not found in the local file, prompt the user to connect to the internet
+                    if (message == "License key not found in the local file.")
+                    {
+                        lblResult.Text = "License key not found in the local file. Please connect to the internet.";
+
+                        // Now, try to validate the license online
+                        string url = $"https://localhost:44395/api/LicenseValidation/ValidateLicense/validate?licenceKey={Uri.EscapeDataString(licenseKey)}";
+                        HttpResponseMessage response = await client.GetAsync(url);
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            string errorResponseBody = await response.Content.ReadAsStringAsync();
+                            lblResult.Text = errorResponseBody;
+                            comboBoxSubCompanies.Items.Clear();
+                            return;  // Exit early as the error has been handled
+                        }
+
+                        string responseBody = await response.Content.ReadAsStringAsync();
+                        JObject parsedJson = JObject.Parse(responseBody);
+                        string messageFromApi = parsedJson["message"]?.ToString()?.Trim();
+
+                        // Process the response from the API as before
+                        if (!string.IsNullOrEmpty(messageFromApi))
+                        {
+                            if (messageFromApi.Equals("License is valid.", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var subCompaniesFromApi = parsedJson["subCompanies"]?.ToObject<List<SubCompany>>() ?? new List<SubCompany>();
+
+                                // If no sub-companies exist from the API, open Form2
+                                if (subCompaniesFromApi.Count == 0)
+                                {
+                                    Form2 noSubCompanyForm = new Form2("License is valid, but no sub-companies are available.", "", licenseKey, "", "");
+                                    noSubCompanyForm.Show();
+                                    lblResult.Text = "License is valid, but no sub-companies are available.";
+                                    return;
+                                }
+
+                                PopulateSubCompanies(subCompaniesFromApi);
+                                lblResult.Text = "License validated successfully.";
+                            }
+                            else
+                            {
+                                lblResult.Text = messageFromApi;  // Handle different messages from the API
+                                comboBoxSubCompanies.Items.Clear();
+                            }
+                        }
+                        else
+                        {
+                            lblResult.Text = "The server response is missing a message. Please contact support.";
+                            comboBoxSubCompanies.Items.Clear();
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -114,11 +177,9 @@ namespace Forms1
         // Method to populate the ComboBox with SubCompanies
         private void PopulateSubCompanies(List<SubCompany> subCompanies)
         {
-            // Clear the ComboBox before adding new items
             comboBoxSubCompanies.Items.Clear();
-            comboBoxSubCompanies.Items.Add("Select a sub-company");  // Optional: Add the default "Select a sub-company"
+            comboBoxSubCompanies.Items.Add("Select a sub-company");
 
-            // Add each SubCompany to the ComboBox
             foreach (var subCompany in subCompanies)
             {
                 comboBoxSubCompanies.Items.Add(new ComboBoxItem
@@ -128,43 +189,37 @@ namespace Forms1
                 });
             }
 
-            // Set the default selected item as "Select a sub-company"
             comboBoxSubCompanies.SelectedIndex = 0;
         }
 
         // ComboBox selection changed event handler
         private void comboBoxSubCompanies_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Check if the selected value is not the default "Select a sub-company"
             if (comboBoxSubCompanies.SelectedIndex > 0)
             {
-                // Get the selected SubCompanyItem
                 if (comboBoxSubCompanies.SelectedItem is ComboBoxItem selectedItem)
                 {
-                    int selectedId = selectedItem.Value;  // Get the selected SubCompany ID
-                    string validationResponse = lblResult.Text;  // Use the actual validation result message
-
-                    // Now create Form2 and pass both the validation result and the SubCompanyId
+                    int selectedId = selectedItem.Value;
+                    string validationResponse = lblResult.Text;
                     Form2 subCompanyDetailsForm = new Form2(validationResponse, selectedId.ToString(), textBox2.Text.Trim(), "", "");
-                    subCompanyDetailsForm.Show();  // Show Form2 with the validation result and sub-company details
+                    subCompanyDetailsForm.Show();
                 }
             }
             else
             {
-                // Handle the case where "Select a sub-company" is still selected
                 lblResult.Text = "Please select a valid sub-company.";
             }
         }
     }
 
-    // Class representing a SubCompany
+    // SubCompany model
     public class SubCompany
     {
         public int subCompanyId { get; set; }
         public string subCompanyName { get; set; }
     }
 
-    // Helper class to represent ComboBox item (text and value pair)
+    // Helper class for ComboBox items
     public class ComboBoxItem
     {
         public string Text { get; set; }
@@ -172,7 +227,7 @@ namespace Forms1
 
         public override string ToString()
         {
-            return Text; // Display the SubCompanyName in the ComboBox
+            return Text;
         }
     }
 }

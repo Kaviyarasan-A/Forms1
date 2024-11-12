@@ -47,6 +47,7 @@ namespace Forms1
             this.lblValidationResult.Size = new System.Drawing.Size(263, 29);
             this.lblValidationResult.TabIndex = 0;
             this.lblValidationResult.Text = "Validation result:";
+            this.lblValidationResult.ForeColor = System.Drawing.Color.DarkBlue;
             // 
             // lblSubCompanyDetails
             // 
@@ -57,6 +58,7 @@ namespace Forms1
             this.lblSubCompanyDetails.Size = new System.Drawing.Size(425, 23);
             this.lblSubCompanyDetails.TabIndex = 1;
             this.lblSubCompanyDetails.Text = "Fetching sub-company details...";
+            this.lblSubCompanyDetails.ForeColor = System.Drawing.Color.Gray;
             // 
             // lblSubCompanyName
             // 
@@ -100,13 +102,13 @@ namespace Forms1
             // 
             // lblLicenseKey
             // 
-            this.lblLicenseKey.AutoSize = true;
-            this.lblLicenseKey.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Regular);
-            this.lblLicenseKey.Location = new System.Drawing.Point(30, 390);
-            this.lblLicenseKey.Name = "lblLicenseKey";
-            this.lblLicenseKey.Size = new System.Drawing.Size(177, 23);
-            this.lblLicenseKey.TabIndex = 6;
-            this.lblLicenseKey.Text = "License Key:";
+           // this.lblLicenseKey.AutoSize = true;
+            //this.lblLicenseKey.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Regular);
+            //this.lblLicenseKey.Location = new System.Drawing.Point(30, 390);
+            //this.lblLicenseKey.Name = "lblLicenseKey";
+            //this.lblLicenseKey.Size = new System.Drawing.Size(177, 23);
+            //this.lblLicenseKey.TabIndex = 6;
+            //this.lblLicenseKey.Text = "License Key:";
             // 
             // lblDownloadStatus
             // 
@@ -116,17 +118,18 @@ namespace Forms1
             this.lblDownloadStatus.Name = "lblDownloadStatus";
             this.lblDownloadStatus.Size = new System.Drawing.Size(245, 23);
             this.lblDownloadStatus.TabIndex = 7;
-            this.lblDownloadStatus.Text = "Download Status:";
+            this.lblDownloadStatus.Text = "Download Status: In Progress...";
+            this.lblDownloadStatus.ForeColor = System.Drawing.Color.OrangeRed;
             // 
             // lblCompanyName
             // 
-            this.lblCompanyName.AutoSize = true;
-            this.lblCompanyName.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Regular);
-            this.lblCompanyName.Location = new System.Drawing.Point(30, 510);
-            this.lblCompanyName.Name = "lblCompanyName";
-            this.lblCompanyName.Size = new System.Drawing.Size(227, 23);
-            this.lblCompanyName.TabIndex = 8;
-            this.lblCompanyName.Text = "Company Name:";
+            //this.lblCompanyName.AutoSize = true;
+            //this.lblCompanyName.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Regular);
+            //this.lblCompanyName.Location = new System.Drawing.Point(30, 510);
+            //this.lblCompanyName.Name = "lblCompanyName";
+            //this.lblCompanyName.Size = new System.Drawing.Size(227, 23);
+            //this.lblCompanyName.TabIndex = 8;
+            //this.lblCompanyName.Text = "Company Name:";
             // 
             // Form2
             // 
@@ -141,6 +144,7 @@ namespace Forms1
             this.Controls.Add(this.lblSubCompanyDetails);
             this.Controls.Add(this.lblValidationResult);
             this.Name = "Form2";
+            this.Text = "License Validation";
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -158,6 +162,14 @@ namespace Forms1
         // Method to show a message box after file is downloaded
         private void ShowDownloadMessage()
         {
+            // Change the download status label to reflect successful download
+            lblDownloadStatus.Text = "Download Status: File Saved!";
+            lblDownloadStatus.ForeColor = System.Drawing.Color.Green; // Change to green
+
+            // Mark the file as downloaded
+            isFileDownloaded = true;
+
+            // Show a message box with a confirmation
             MessageBox.Show("The file has been downloaded successfully!", "Download Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
