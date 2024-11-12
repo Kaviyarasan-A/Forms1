@@ -150,6 +150,9 @@ namespace Forms1
                     lblConnectionStringOnline.Text = $"Online Connection: {connectionStringOnline}";
                     lblConnectionStringOffline.Text = $"Offline Connection: {connectionStringOffline}";
                     lblSubCompanyId.Text = $"SubCompany ID: {subCompanyId}";
+
+                    // Trigger XML download after sub-company details are loaded
+                    DownloadXmlAutomatically();
                 }
                 else
                 {
@@ -202,13 +205,34 @@ namespace Forms1
 
                     if (subCompaniesFromApi.Any())
                     {
+                        // Assuming we get at least one sub-company from the API response
+                        var subCompany = subCompaniesFromApi.First(); // Get the first sub-company
+
+                        // Ensure we have valid data before attempting to download the XML
+                        if (string.IsNullOrEmpty(subCompany.subCompanyName) ||
+                            string.IsNullOrEmpty(subCompany.connectionStringOnline) ||
+                            string.IsNullOrEmpty(subCompany.connectionStringOffline) ||
+                            subCompany.subCompanyId == 0)
+                        {
+                            lblSubCompanyDetails.Text = "Invalid sub-company details received from API.";
+                            return;
+                        }
+
+                        // Set the sub-company details
+                        subCompanyName = subCompany.subCompanyName;
+                        connectionStringOnline = subCompany.connectionStringOnline;
+                        connectionStringOffline = subCompany.connectionStringOffline;
+                        subCompanyId = subCompany.subCompanyId;
+
                         // Display the fetched details in the labels
-                        var subCompany = subCompaniesFromApi.First(); // Assuming the API returns a list of sub-companies
                         lblSubCompanyDetails.Text = "Sub-company details loaded from API.";
-                        lblSubCompanyName.Text = $"SubCompany: {subCompany.subCompanyName}";
-                        lblConnectionStringOnline.Text = $"Online Connection: {subCompany.connectionStringOnline}";
-                        lblConnectionStringOffline.Text = $"Offline Connection: {subCompany.connectionStringOffline}";
-                        lblSubCompanyId.Text = $"SubCompany ID: {subCompany.subCompanyId}";
+                        lblSubCompanyName.Text = $"SubCompany: {subCompanyName}";
+                        lblConnectionStringOnline.Text = $"Online Connection: {connectionStringOnline}";
+                        lblConnectionStringOffline.Text = $"Offline Connection: {connectionStringOffline}";
+                        lblSubCompanyId.Text = $"SubCompany ID: {subCompanyId}";
+
+                        // Trigger XML download after sub-company details are loaded
+                        await DownloadXmlAutomatically(); // Use await here to ensure the XML download completes before continuing
                     }
                     else
                     {
@@ -238,5 +262,85 @@ namespace Forms1
         // AES encryption key and IV generation
         private static byte[] GenerateRandomKey() => Aes.Create().Key;
         private static byte[] GenerateRandomIV() => Aes.Create().IV;
+
+        // Method to download and save the XML automatically after sub-company details are fetched
+        private async Task DownloadXmlAutomatically()
+        {
+            lblSubCompanyDetails.Text = "Downloading XML file... Please wait.";
+            string xmlContent = ConvertToXml(subCompanyName, connectionStringOnline, connectionStringOffline, subCompanyId);
+            string encryptedXml = EncryptString(xmlContent, key, iv);
+
+            string directoryPath = @"C:\Users\aruch\source\repos\SubCompanyConfig";
+            string fileName = $"{subCompanyName.Replace(" ", "_").Replace(":", "_").Replace("/", "_").Replace("\\", "_")}.xml";
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            try
+            {
+                if (!Directory.Exists(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+
+                await Task.Run(() =>
+                {
+                    System.IO.File.WriteAllText(filePath, encryptedXml);
+                });
+
+                MessageBox.Show("Config file saved successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                lblSubCompanyDetails.Text = "File saved successfully.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving the file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                lblSubCompanyDetails.Text = "Error downloading the file.";
+            }
+        }
+
+        private string ConvertToXml(string subCompanyName, string connectionStringOnline, string connectionStringOffline, int subCompanyId)
+        {
+            System.Xml.XmlDocument xmlDoc = new System.Xml.XmlDocument();
+            System.Xml.XmlElement rootElement = xmlDoc.CreateElement("SubCompanyConfig");
+            xmlDoc.AppendChild(rootElement);
+
+            System.Xml.XmlElement nameElement = xmlDoc.CreateElement("SubCompanyName");
+            nameElement.InnerText = subCompanyName;
+            rootElement.AppendChild(nameElement);
+
+            System.Xml.XmlElement onlineConnectionElement = xmlDoc.CreateElement("ConnectionStringOnline");
+            onlineConnectionElement.InnerText = connectionStringOnline;
+            rootElement.AppendChild(onlineConnectionElement);
+
+            System.Xml.XmlElement offlineConnectionElement = xmlDoc.CreateElement("ConnectionStringOffline");
+            offlineConnectionElement.InnerText = connectionStringOffline;
+            rootElement.AppendChild(offlineConnectionElement);
+
+            System.Xml.XmlElement idElement = xmlDoc.CreateElement("SubCompanyId");
+            idElement.InnerText = subCompanyId.ToString();
+            rootElement.AppendChild(idElement);
+
+            return xmlDoc.OuterXml;
+        }
+
+        private string EncryptString(string plainText, byte[] key, byte[] iv)
+        {
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = key;
+                aesAlg.IV = iv;
+                ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+
+                using (MemoryStream msEncrypt = new MemoryStream())
+                {
+                    using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                    {
+                        using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
+                        {
+                            swEncrypt.Write(plainText);
+                        }
+                    }
+                    return Convert.ToBase64String(msEncrypt.ToArray());
+                }
+            }
+        }
     }
 }
