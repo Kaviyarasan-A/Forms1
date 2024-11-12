@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.10.34928.147
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Forms1", "Forms1\Forms1.csproj", "{FE91B1E0-ACC6-45EA-96E1-2BCD405B29F3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScreenValidation", "Forms1\ScreenValidation.csproj", "{FE91B1E0-ACC6-45EA-96E1-2BCD405B29F3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Logo", "Logo", "{09197ADF-5708-4ADE-A88E-56631FCB0E38}"
 	ProjectSection(SolutionItems) = preProject

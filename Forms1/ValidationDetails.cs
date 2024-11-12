@@ -1,19 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Newtonsoft.Json.Linq;
-using System.Xml.Linq;
-using System.Collections.Generic;
 using System.Xml;
+using System.Xml.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace Forms1
 {
-    public partial class Form2 : Form
+    public partial class ValidationDetails : Form
     {
         private static readonly HttpClient client = new HttpClient();
         private string validationResult;
@@ -28,50 +27,57 @@ namespace Forms1
         private string connectionStringOffline;
         private int subCompanyId;
 
-        // Encryption key and IV
+        // Encryption key and IV (with error handling for AES initialization)
         private static readonly byte[] key = GenerateRandomKey();  // 16-byte key for AES-128
         private static readonly byte[] iv = GenerateRandomIV();    // 16-byte IV for AES
 
         // Constructor to initialize the form with responseData, subCompanyNameOrId, and licenseKey
-        public Form2(string responseData, string subCompanyNameOrId, string licenseKey, string validFrom, string validTo)
+        public ValidationDetails(string responseData, string subCompanyNameOrId, string licenseKey, string validFrom, string validTo)
         {
-            InitializeComponent();
-
-            // Log the value passed to the constructor
-            this.validationResult = responseData;
-            this.subCompanyNameOrId = subCompanyNameOrId;
-            this.licenseKey = licenseKey;
-            this.validFrom = validFrom;
-            this.validTo = validTo;
-
-            // Display the validation result
-            lblValidationResult.Text = $"Validation result: {validationResult}";
-
-            // Check if there are no sub-companies available
-            if (string.IsNullOrEmpty(subCompanyNameOrId) || subCompanyNameOrId == "No sub-companies available.")
+            try
             {
-                lblSubCompanyDetails.Text = "No sub-company available.";
+                InitializeComponent();
 
-                // Display the company (license key) details
-                lblLicenseKey.Text = string.IsNullOrEmpty(licenseKey)
-                    ? "License Key: Not available."
-                    : $"License Key: {licenseKey}";
+                // Log the value passed to the constructor
+                this.validationResult = responseData;
+                this.subCompanyNameOrId = subCompanyNameOrId;
+                this.licenseKey = licenseKey;
+                this.validFrom = validFrom;
+                this.validTo = validTo;
 
-                lblCompanyName.Text = string.IsNullOrEmpty(licenseKey) ? "Company Name: Not Available" : "XYZ Corp";
-                return;
+                // Display the validation result
+                lblValidationResult.Text = $"Validation result: {validationResult}";
+
+                // Check if there are no sub-companies available
+                if (string.IsNullOrEmpty(subCompanyNameOrId) || subCompanyNameOrId == "No sub-companies available.")
+                {
+                    lblSubCompanyDetails.Text = "No sub-company available.";
+
+                    // Display the company (license key) details
+                    lblLicenseKey.Text = string.IsNullOrEmpty(licenseKey)
+                        ? "License Key: Not available."
+                        : $"License Key: {licenseKey}";
+
+                    lblCompanyName.Text = string.IsNullOrEmpty(licenseKey) ? "Company Name: Not Available" : "XYZ Corp";
+                    return;
+                }
+
+                // If license is valid locally, load from local XML
+                var (isValid, message) = ValidateLicenseFromXml(licenseKey);
+                if (isValid)
+                {
+                    // Load the sub-company details from local XML if valid
+                    LoadSubCompanyDetailsFromXml(licenseKey);
+                }
+                else
+                {
+                    // If license is invalid locally, fetch details from the API
+                    FetchSubCompanyDetailsFromApi(licenseKey);
+                }
             }
-
-            // If license is valid locally, load from local XML
-            var (isValid, message) = ValidateLicenseFromXml(licenseKey);
-            if (isValid)
+            catch (Exception ex)
             {
-                // Load the sub-company details from local XML if valid
-                LoadSubCompanyDetailsFromXml(licenseKey);
-            }
-            else
-            {
-                // If license is invalid locally, fetch details from the API
-                FetchSubCompanyDetailsFromApi(licenseKey);
+                MessageBox.Show($"Error initializing ValidationDetails: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -145,14 +151,12 @@ namespace Forms1
                     subCompanyId = int.Parse(licenseElement.Element("Id")?.Value ?? "0");
 
                     // Display the fetched details in the labels
-                    lblSubCompanyDetails.Text = "Sub-company details loaded from XML.";
+                    lblSubCompanyDetails.Text = "Sub-company details loaded ";
                     lblSubCompanyName.Text = $"SubCompany: {subCompanyName}";
                     lblConnectionStringOnline.Text = $"Online Connection: {connectionStringOnline}";
                     lblConnectionStringOffline.Text = $"Offline Connection: {connectionStringOffline}";
                     lblSubCompanyId.Text = $"SubCompany ID: {subCompanyId}";
-
-                    // Trigger XML download after sub-company details are loaded
-                    DownloadXmlAutomatically();
+                    return;
                 }
                 else
                 {
@@ -225,14 +229,14 @@ namespace Forms1
                         subCompanyId = subCompany.subCompanyId;
 
                         // Display the fetched details in the labels
-                        lblSubCompanyDetails.Text = "Sub-company details loaded from API.";
+                        lblSubCompanyDetails.Text = "Sub-company details Saved Successfully.";
                         lblSubCompanyName.Text = $"SubCompany: {subCompanyName}";
                         lblConnectionStringOnline.Text = $"Online Connection: {connectionStringOnline}";
                         lblConnectionStringOffline.Text = $"Offline Connection: {connectionStringOffline}";
                         lblSubCompanyId.Text = $"SubCompany ID: {subCompanyId}";
 
                         // Trigger XML download after sub-company details are loaded
-                        await DownloadXmlAutomatically(); // Use await here to ensure the XML download completes before continuing
+                        await DownloadXmlAutomatically(); // Initiate the XML download here
                     }
                     else
                     {
@@ -241,29 +245,16 @@ namespace Forms1
                 }
                 else
                 {
-                    lblSubCompanyDetails.Text = messageFromApi;
+                    lblSubCompanyDetails.Text = $"API error: {messageFromApi}";
                 }
             }
             catch (Exception ex)
             {
-                lblSubCompanyDetails.Text = $"Error fetching sub-company details from API: {ex.Message}";
+                lblSubCompanyDetails.Text = $"Error fetching data from API: {ex.Message}";
             }
         }
 
-        // SubCompany model for API response
-        public class SubCompany
-        {
-            public int subCompanyId { get; set; }
-            public string subCompanyName { get; set; }
-            public string connectionStringOnline { get; set; }
-            public string connectionStringOffline { get; set; }
-        }
-
-        // AES encryption key and IV generation
-        private static byte[] GenerateRandomKey() => Aes.Create().Key;
-        private static byte[] GenerateRandomIV() => Aes.Create().IV;
-
-        // Method to download and save the XML automatically after sub-company details are fetched
+        // Helper function to download the XML file automatically
         private async Task DownloadXmlAutomatically()
         {
             lblSubCompanyDetails.Text = "Downloading XML file... Please wait.";
@@ -295,7 +286,6 @@ namespace Forms1
                 lblSubCompanyDetails.Text = "Error downloading the file.";
             }
         }
-
         private string ConvertToXml(string subCompanyName, string connectionStringOnline, string connectionStringOffline, int subCompanyId)
         {
             System.Xml.XmlDocument xmlDoc = new System.Xml.XmlDocument();
@@ -341,6 +331,51 @@ namespace Forms1
                     return Convert.ToBase64String(msEncrypt.ToArray());
                 }
             }
+        }
+
+
+
+
+            // AES Key and IV generation with error handling
+            private static byte[] GenerateRandomKey()
+        {
+            try
+            {
+                using (Aes aesAlg = Aes.Create())
+                {
+                    return aesAlg.Key;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error generating key: {ex.Message}");
+                return new byte[16];  // Fallback to a default key
+            }
+        }
+
+        private static byte[] GenerateRandomIV()
+        {
+            try
+            {
+                using (Aes aesAlg = Aes.Create())
+                {
+                    return aesAlg.IV;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error generating IV: {ex.Message}");
+                return new byte[16];  // Fallback to a default IV
+            }
+        }
+
+        // SubCompany class used for deserialization from JSON response
+        public class SubCompany
+        {
+            public int subCompanyId { get; set; }
+            public string subCompanyName { get; set; }
+            public string connectionStringOnline { get; set; }
+            public string connectionStringOffline { get; set; }
         }
     }
 }

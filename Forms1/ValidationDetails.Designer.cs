@@ -3,7 +3,7 @@ using System.Windows.Forms;
 
 namespace Forms1
 {
-    public partial class Form2 : Form
+    public partial class ValidationDetails : Form
     {
         private System.ComponentModel.IContainer components = null;
 
@@ -20,7 +20,7 @@ namespace Forms1
         // Add a variable to track download status
         private bool isFileDownloaded = false;
 
-        public Form2()
+        public ValidationDetails()
         {
             InitializeComponent();
         }
@@ -175,7 +175,7 @@ namespace Forms1
 
         // You can call DownloadFile() when you detect the download is done in your code
         // For example, if you download the file automatically when the form is loaded:
-        protected override void OnLoad(EventArgs e)
+       protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
             DownloadFile(); // Simulate file download when the form loads

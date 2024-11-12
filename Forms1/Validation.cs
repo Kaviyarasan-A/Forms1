@@ -11,11 +11,11 @@ using System.Data.SqlClient;
 
 namespace Forms1
 {
-    public partial class Form1 : Form
+    public partial class Validation : Form
     {
         private static readonly HttpClient client = new HttpClient();
 
-        public Form1()
+        public Validation()
         {
             InitializeComponent();
         }
@@ -104,7 +104,7 @@ namespace Forms1
                     if (subCompanies.Count == 0)
                     {
                         // Redirect to Form2 if there are no sub-companies
-                        Form2 noSubCompanyForm = new Form2("License is valid, but no sub-companies are available.", "", licenseKey, "", "");
+                        ValidationDetails noSubCompanyForm = new ValidationDetails("License is valid, but no sub-companies are available.", "", licenseKey, "", "");
                         noSubCompanyForm.Show();
                         lblResult.Text = "License is valid, but no sub-companies are available.";
                         return;  // Exit early as the redirect is handled
@@ -150,7 +150,7 @@ namespace Forms1
                                 // If no sub-companies exist from the API, open Form2
                                 if (subCompaniesFromApi.Count == 0)
                                 {
-                                    Form2 noSubCompanyForm = new Form2("License is valid, but no sub-companies are available.", "", licenseKey, "", "");
+                                    ValidationDetails noSubCompanyForm = new ValidationDetails("License is valid, but no sub-companies are available.", "", licenseKey, "", "");
                                     noSubCompanyForm.Show();
                                     lblResult.Text = "License is valid, but no sub-companies are available.";
                                     return;  // Exit early as the redirect is handled
@@ -214,7 +214,7 @@ namespace Forms1
                     string validationResponse = lblResult.Text;  // Use the actual validation result message
 
                     // Now create Form2 and pass both the validation result and the SubCompanyId
-                    Form2 subCompanyDetailsForm = new Form2(validationResponse, selectedId.ToString(), textBox2.Text.Trim(), "", "");
+                    ValidationDetails subCompanyDetailsForm = new ValidationDetails(validationResponse, selectedId.ToString(), textBox2.Text.Trim(), "", "");
                     subCompanyDetailsForm.Show();  // Show Form2 with the validation result and sub-company details
                 }
             }
