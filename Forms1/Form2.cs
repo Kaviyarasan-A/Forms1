@@ -110,7 +110,9 @@ namespace Forms1
 
         private async Task DownloadXmlAutomatically()
         {
-            lblSubCompanyDetails.Text = "Downloading XML file... Please wait.";
+            lblDownloadStatus.Text = "Downloading XML file... Please wait.";
+            lblDownloadStatus.ForeColor = System.Drawing.Color.Black; // Initial color while downloading
+
             string xmlContent = ConvertToXml(subCompanyName, connectionStringOnline, connectionStringOffline, subCompanyId);
             string encryptedXml = EncryptString(xmlContent, key, iv);
 
@@ -130,13 +132,15 @@ namespace Forms1
                     System.IO.File.WriteAllText(filePath, encryptedXml);
                 });
 
-                MessageBox.Show("Config file saved successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                lblSubCompanyDetails.Text = "File saved successfully.";
+                // Update status with green color (success)
+                lblDownloadStatus.Text = "Download successful! File saved.";
+                lblDownloadStatus.ForeColor = System.Drawing.Color.Green;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving the file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblSubCompanyDetails.Text = "Error downloading the file.";
+                // Update status with red color (error)
+                lblDownloadStatus.Text = $"Error downloading the file: {ex.Message}";
+                lblDownloadStatus.ForeColor = System.Drawing.Color.Red;
             }
         }
 
